@@ -1,10 +1,15 @@
 #!/usr/bin/env nextflow
 
 //params.setup = 'setup.tab'
-params.in = '/lustre/scratch/users/elin.axelsson/testfiles/*_{1,2}.fastq'
+params.in = '/lustre/scratch/users/elin.axelsson/testfiles/S*_{1,2}.fastq'
 params.fasta = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.cdna.all.fa.gz"
 params.dna_fasta     = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"
 params.gtf 	     = "/lustre/scratch/projects/berger_common/backup_berger_common/gtf/Arabidopsis_thaliana.TAIR10.35.gtf"
+params.fragment_len  = '180'
+params.fragment_sd   = '20'
+params.bootstrap     = '100'
+params.output        = "results/"
+
 
 
 fasta=file(params.fasta)
@@ -56,6 +61,7 @@ storeDir '/lustre/scratch/projects/berger_common/backup_berger_common'
 // start 
 
 process trimgalore {
+ 	publishDir "$params.output/$name/trimgalore", mode: 'copy' , pattern: '*.{txt,html,zip}'
 	tag "data: $name"
 
 	input:
@@ -63,6 +69,9 @@ process trimgalore {
 
 	output:
 	set name, file("*.fq") into trimmed_reads
+	file "*trimming_report.txt"
+	file "*_fastqc.html"
+	file "*_fastqc.zip"
 
 	script:
 	def single = reads instanceof Path
@@ -78,15 +87,20 @@ process trimgalore {
 	}
 }
 
+// need this channel several times
+
+trimmed_reads.into {trimmed_reads_star; trimmed_reads_kallisto}
+
+
 process star {
 	publishDir "$params.output/$name", mode: 'copy'
 	tag "star: $name"
 
     	input:
     	file index from star_index
-    	set name, file(fq) from trimmed_reads
+    	set name, file(fq) from trimmed_reads_star
     
-   	 output:
+   	output:
     	file "star_${name}"    
 
     	script:
@@ -97,6 +111,30 @@ process star {
 }
 
 
+process quantKallisto {
+publishDir "$params.output/$name", mode: 'copy'
+tag "fq: $name"
+
+    input:
+    file index from transcriptome_index
+    set name, file(fq) from trimmed_reads_kallisto
+
+    output:
+    file "kallisto_${name}" into kallisto_dirs 
+
+    script:
+    def single = fq instanceof Path
+    if( single ) {
+    """
+    kallisto quant -i ${index} -o kallisto_${name} --single -l ${params.fragment_len} -s ${params.fragment_sd} -b ${params.bootstrap} ${fq}
+    """ 
+    }
+    else {
+    """
+    kallisto quant -i ${index} -o kallisto_${name} -b ${params.bootstrap} ${fq}
+    """
+    }
+}
 
 
 
