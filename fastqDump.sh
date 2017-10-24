@@ -11,9 +11,11 @@ tn=$3      #7
 sample_id_single=`awk -v cn="$cn" -v tn="$tn" 'BEGIN {NFR>1} { if ($tn == "SINGLE" || $tn == "SE") print $cn}' $infile`
 
 for sis in $sample_id_single; do
-    echo "dumping single read file: " $sis
-    fastq-dump $sis
-    mv ${sis}.fastq ${sis}_1.fastq
+	if [ ! -f ${sis}.fastq.gz ] && [ ! -f ${sis}_1.fastq.gz ]; then 
+    		echo "dumping single read file: " $sis
+    		fastq-dump --gzip  $sis
+    		mv ${sis}.fastq.gz ${sis}_1.fastq.gz
+	fi
 done
 
 
@@ -22,7 +24,9 @@ done
 sample_id_paired=`awk -v cn="$cn" -v tn="$tn" 'BEGIN {NFR>1} { if ($tn == "PAIRED" || $tn == "PE") print $cn}' $infile`
 
 for sip in $sample_id_paired; do
-   echo "dumping paired read file: " $sip
-   fastq-dump --split-files  $sip
+	if [ ! -f ${sip}_1.fastq.gz ] || [ ! -f ${sip}_2.fastq.gz ]; then 
+   		echo "dumping paired read file: " $sip
+   		fastq-dump --split-files --gzip $sip
+	fi
 done
 

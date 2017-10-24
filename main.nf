@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 //params.setup = 'setup.tab'
-params.in = '/lustre/scratch/users/elin.axelsson/testfiles/S*_{1,2}.fastq'
+params.in = '/lustre/scratch/users/elin.axelsson/first_set/S*_{1,2}.fastq'
 params.fasta = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.cdna.all.fa.gz"
 params.dna_fasta     = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"
 params.gtf 	     = "/lustre/scratch/projects/berger_common/backup_berger_common/gtf/Arabidopsis_thaliana.TAIR10.35.gtf"
