@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 //params.setup = 'setup.tab'
-params.in = '/lustre/scratch/users/elin.axelsson/first_set/S*_{1,2}.fastq'
+params.in = '/lustre/scratch/users/elin.axelsson/first_set/*_{1,2}.fastq'
 params.fasta = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.cdna.all.fa.gz"
 params.dna_fasta     = "/lustre/scratch/projects/berger_common/backup_berger_common/fasta/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa"
 params.gtf 	     = "/lustre/scratch/projects/berger_common/backup_berger_common/gtf/Arabidopsis_thaliana.TAIR10.35.gtf"
@@ -9,7 +9,7 @@ params.fragment_len  = '180'
 params.fragment_sd   = '20'
 params.bootstrap     = '100'
 params.output        = "results/"
-
+params.normtosize = '119146348'
 
 
 fasta=file(params.fasta)
@@ -93,7 +93,7 @@ trimmed_reads.into {trimmed_reads_star; trimmed_reads_kallisto}
 
 
 process star {
-	publishDir "$params.output/$name", mode: 'copy'
+	publishDir "$params.output/$name/star_${name}", mode: 'copy'
 	tag "star: $name"
 
     	input:
@@ -101,14 +101,55 @@ process star {
     	set name, file(fq) from trimmed_reads_star
     
    	output:
-    	file "star_${name}"    
+    	set name, file("Aligned.out.sam") into samfiles
+	file "*.out"
+	file "*.tab"   
 
     	script:
     	"""
-    	mkdir -p star_${name}
-    	STAR --genomeDir $index --readFilesIn $fq --runThreadN 4 --quantMode GeneCounts --outFileNamePrefix ./star_${name}/
+    	STAR --genomeDir $index --readFilesIn $fq --runThreadN 4 --quantMode GeneCounts  
     	"""
 }
+
+process sam2bam {
+	publishDir "$params.output/$name/bam_bw", mode: 'copy'
+	tag "bam: $name"
+
+	input:
+	set name, file(sam) from samfiles
+	
+
+	output:
+	set name, file("Aligned_sorted_${name}.bam") into bamfiles
+	
+	script:
+	"""
+	samtools view -b ${sam} | samtools sort -o Aligned_sorted_${name}.bam - 
+	"""
+}
+
+process bam2bw {
+	publishDir "$params.output/$name/bam_bw", mode: 'copy'
+        tag "bw: $name"
+
+	input:
+	set name, file(bam) from bamfiles
+
+
+	output:
+	file("${name}.bw")
+	
+	script:
+	"""
+	export TMPDIR=\$(pwd)
+   	samtools index ${bam}
+   	bamCoverage -b ${bam} -o ${name}.bw --normalizeTo1x ${params.normtosize} --binSize=10	
+	"""
+}
+
+
+
+
 
 
 process quantKallisto {
@@ -137,6 +178,9 @@ tag "fq: $name"
 }
 
 
+workflow.onComplete { 
+	println ( workflow.success ? "Done!" : "Oops .. something went wrong" )
+}
 
 
 
